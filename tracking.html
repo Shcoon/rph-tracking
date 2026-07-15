@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cek Status Servis - RPH Gadget Service</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink-bg: #FFF0F5;
+            --pink-tombol: #7F4AA6;
+            --pink-hover: #4B2A64;
+            --pink-teks: #4A0E2E;
+            --pink-accent: #FF69B4;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--pink-bg);
+            color: var(--pink-teks);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .tracking-card {
+            background: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid #FFB6C1;
+            box-shadow: 0 10px 25px rgba(255, 105, 180, 0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--pink-teks);
+            font-weight: 700;
+        }
+
+        p.subtitle {
+            font-size: 13px;
+            color: gray;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #FFC0CB;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: #FFF0F5;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        input:focus {
+            border-color: var(--pink-accent);
+            outline: none;
+            background-color: #fff;
+        }
+
+        button.btn-track {
+            width: 100%;
+            background: linear-gradient(45deg, #FF69B4, #FF1493);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button.btn-track:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 20, 147, 0.3);
+        }
+
+        /* --- RESULT BOX --- */
+        .result-box {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: left;
+            display: none;
+            border: 1px dashed #ddd;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        .badge-proses { background-color: #FFE4E1; color: #7F4AA6; }
+        .badge-selesai { background-color: #DFF0D8; color: #006400; }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            border-bottom: 1px solid #f5f5f5;
+            padding-bottom: 5px;
+        }
+        .info-row strong { color: #333; }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+            font-weight: bold;
+            color: var(--pink-tombol);
+        }
+    </style>
+</head>
+<body>
+
+<div class="tracking-card">
+    <h2>RPH Gadget Service</h2>
+    <p class="subtitle">Cek status perbaikan gadget atau proyek aplikasi Anda secara real-time.</p>
+    
+    <div class="form-group">
+        <label for="orderId">Masukkan ID Nota / Antrean:</label>
+        <input type="number" id="orderId" placeholder="Contoh: 10" required>
+    </div>
+    
+    <button class="btn-track" onclick="cekStatusServis()">🔍 Cari Data Servis</button>
+    
+    <div class="loading" id="trackLoading">Menghubungkan ke sistem... ⏳</div>
+
+    <!-- Kotak Hasil Pencarian -->
+    <div class="result-box" id="trackResult">
+        <div style="text-align: center;">
+            <span class="badge" id="resStatus">-</span>
+        </div>
+        <div class="info-row"><span>Nama Pelanggan:</span> <strong id="resNama">-</strong></div>
+        <div class="info-row"><span>Unit / Proyek:</span> <strong id="resUnit">-</strong></div>
+        <div class="info-row"><span>Tanggal Masuk:</span> <strong id="resTgl">-</strong></div>
+        <div class="info-row" id="rowEstimasi"><span>Total Biaya:</span> <strong id="resBiaya">-</strong></div>
+        
+        <div style="margin-top: 15px; font-size: 12px; color: gray; text-align: center; line-height: 1.4;">
+            💡 <em>Jika status sudah <strong>Selesai</strong>, Anda bisa langsung mengambil unit di toko atau menghubungi kami via WhatsApp.</em>
+        </div>
+    </div>
+</div>
+
+<script>
+    // URL WEB APP GOOGLE APPS SCRIPT ANDA
+    const webAppUrl = "https://script.google.com/macros/s/AKfycbxdGeui9yuPVXasDfUQge40tdg6y9MIT56S37ff83v-_ydTwKhAvuBa_GvpY9lC7LmNpg/exec"; 
+
+    function formatIDR(amount) {
+        return "Rp " + Number(amount || 0).toLocaleString('id-ID');
+    }
+
+    function cekStatusServis() {
+        const idNota = document.getElementById('orderId').value;
+        const loading = document.getElementById('trackLoading');
+        const resultBox = document.getElementById('trackResult');
+
+        if (!idNota) {
+            alert("Silakan masukkan ID Nota terlebih dahulu!");
+            return;
+        }
+
+        loading.style.display = 'block';
+        resultBox.style.display = 'none';
+
+        // Menembak action get_all_data secara publik
+        const targetUrl = `${webAppUrl}?action=get_all_data&t=${new Date().getTime()}`;
+
+        fetch(targetUrl)
+        .then(response => response.json())
+        .then(data => {
+            // Cari data di sheet service berdasarkan ID
+            const dataServis = data.service.find(s => s.id == idNota);
+
+            if (!dataServis) {
+                alert(`Data dengan ID Nota #${idNota} tidak ditemukan. Periksa kembali nomor nota Anda.`);
+                return;
+            }
+
+            // Render hasil pencarian
+            document.getElementById('resNama').innerText = dataServis.nama_pelanggan;
+            document.getElementById('resUnit').innerText = dataServis.detail_barang;
+            document.getElementById('resTgl').innerText = dataServis.tanggal;
+
+            const badgeStatus = document.getElementById('resStatus');
+            badgeStatus.innerText = dataServis.status.toUpperCase();
+
+            if (dataServis.status === 'Selesai') {
+                badgeStatus.className = "badge badge-selesai";
+                document.getElementById('rowEstimasi').style.display = 'flex';
+                document.getElementById('resBiaya').innerText = formatIDR(dataServis.total_bayar);
+            } else {
+                badgeStatus.className = "badge badge-proses";
+                // Menyembunyikan biaya jika unit masih dalam proses pengerjaan (opsional untuk privasi)
+                document.getElementById('rowEstimasi').style.display = 'none'; 
+            }
+
+            resultBox.style.display = 'block';
+        })
+        .catch(err => {
+            alert("Gagal memuat status. Terjadi kendala koneksi ke server database.");
+            console.error(err);
+        })
+        .finally(() => {
+            loading.style.display = 'none';
+        });
+    }
+</script>
+
+</body>
+</html>
